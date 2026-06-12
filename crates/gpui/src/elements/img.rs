@@ -2,7 +2,7 @@ use crate::{
     AnyElement, AnyImageCache, App, Asset, AssetLogger, Bounds, DefiniteLength, Element, ElementId,
     Entity, GlobalElementId, Hitbox, Image, ImageCache, InspectorElementId, InteractiveElement,
     Interactivity, IntoElement, LayoutId, Length, ObjectFit, Pixels, RenderImage, Resource,
-    SharedString, SharedUri, StyleRefinement, Styled, Task, Window, px,
+    SharedString, SharedUri, StyleRefinement, Styled, Task, Transformation, Window, px,
 };
 use anyhow::Result;
 
@@ -193,6 +193,7 @@ pub struct Img {
     source: ImageSource,
     style: ImageStyle,
     image_cache: Option<AnyImageCache>,
+    transformation: Option<Transformation>,
 }
 
 /// Create a new image element.
@@ -203,10 +204,18 @@ pub fn img(source: impl Into<ImageSource>) -> Img {
         source: source.into(),
         style: ImageStyle::default(),
         image_cache: None,
+        transformation: None,
     }
 }
 
 impl Img {
+    /// Transform the image element with the given transformation.
+    /// Note that this won't affect the hitbox or layout of the element, only the rendering.
+    pub fn with_transformation(mut self, transformation: Transformation) -> Self {
+        self.transformation = Some(transformation);
+        self
+    }
+
     /// A list of all format extensions currently supported by this img element
     pub fn extensions() -> &'static [&'static str] {
         // This is the list in [image::ImageFormat::from_extension] + `svg`
@@ -490,13 +499,22 @@ impl Element for Img {
                         .corner_radii
                         .to_pixels(window.rem_size())
                         .clamp_radii_for_quad_size(new_bounds.size);
+                    let transformation = self
+                        .transformation
+                        .as_ref()
+                        .map(|transformation| {
+                            transformation.into_matrix(new_bounds.center(), window.scale_factor())
+                        })
+                        .unwrap_or_default();
+
                     window
-                        .paint_image(
+                        .paint_image_with_transformation(
                             new_bounds,
                             corner_radii,
                             data,
                             layout_state.frame_index,
                             self.style.grayscale,
+                            transformation,
                         )
                         .log_err();
                 } else if let Some(replacement) = &mut layout_state.replacement {

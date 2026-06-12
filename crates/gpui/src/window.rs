@@ -3920,6 +3920,7 @@ impl Window {
                 content_mask,
                 tile,
                 opacity,
+                transformation: TransformationMatrix::unit(),
             });
         }
         Ok(())
@@ -4002,6 +4003,29 @@ impl Window {
         frame_index: usize,
         grayscale: bool,
     ) -> Result<()> {
+        self.paint_image_with_transformation(
+            bounds,
+            corner_radii,
+            data,
+            frame_index,
+            grayscale,
+            TransformationMatrix::unit(),
+        )
+    }
+
+    /// Paint an image into the scene for the next frame at the current z-index with a transform.
+    /// This method will panic if the frame_index is not valid
+    ///
+    /// This method should only be called as part of the paint phase of element drawing.
+    pub fn paint_image_with_transformation(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        corner_radii: Corners<Pixels>,
+        data: Arc<RenderImage>,
+        frame_index: usize,
+        grayscale: bool,
+        transformation: TransformationMatrix,
+    ) -> Result<()> {
         self.invalidator.debug_assert_paint();
 
         let bounds = self.snap_bounds(bounds);
@@ -4035,6 +4059,7 @@ impl Window {
             corner_radii,
             tile,
             opacity,
+            transformation,
         });
         Ok(())
     }
